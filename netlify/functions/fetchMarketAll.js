@@ -1,10 +1,8 @@
 // netlify/functions/fetchMarketAll.js
-
-const fetch = require('node-fetch'); // node-fetch 설치 필요
+const fetch = require('node-fetch'); // node-fetch 불러오기
 
 exports.handler = async function(event, context) {
   try {
-    // Upbit API의 전체 마켓 정보 가져오기
     const response = await fetch('https://api.upbit.com/v1/market/all');
     
     if (!response.ok) {

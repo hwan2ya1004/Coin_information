@@ -286,7 +286,12 @@
     function calculateMaxMinChangeRate(candleData) {
       if (candleData.length === 0) return { max: '-', min: '-' };
       
-      const changeRates = candleData.map(candle => parseFloat(candle.change_rate));
+      // 직접 변동률 계산
+      const prices = candleData.map(candle => parseFloat(candle.trade_price));
+      const changeRates = prices.map((price, index) => {
+        if (index === 0) return 0; // 첫 번째 가격은 변동률 계산 불가
+        return (price - prices[index - 1]) / prices[index - 1];
+      });
       console.log('Change Rates:', changeRates); // 디버깅용 로그
       const maxChangeRate = Math.max(...changeRates);
       const minChangeRate = Math.min(...changeRates);

@@ -287,7 +287,7 @@
       if (candleData.length === 0) return { max: '-', min: '-' };
       
       const changeRates = candleData.map(candle => parseFloat(candle.change_rate));
-      console.log('Change Rates:', changeRates); // 디버깅용
+      console.log('Change Rates:', changeRates); // 디버깅용 로그
       const maxChangeRate = Math.max(...changeRates);
       const minChangeRate = Math.min(...changeRates);
       
@@ -356,7 +356,7 @@
           const candleData = top5Candles[index];
           const { max, min } = calculateMaxMinChangeRate(candleData);
 
-          console.log(`Max and Min for ${ticker.market}:`, max, min); // 디버깅용
+          console.log(`Max and Min for ${ticker.market}:`, max, min); // 디버깅용 로그
 
           const ratio = totalBid && totalAsk ? (totalBid / totalAsk).toFixed(2) : '-';
           const sentiment = totalBid > totalAsk ? '긍정적' : '부정적';

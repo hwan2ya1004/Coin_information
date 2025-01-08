@@ -1,9 +1,9 @@
 // netlify/functions/fetchTicker.js
+const fetch = require('node-fetch');
 
 exports.handler = async function(event, context) {
   try {
     const { markets } = event.queryStringParameters;
-
     if (!markets) {
       return {
         statusCode: 400,
@@ -11,7 +11,8 @@ exports.handler = async function(event, context) {
       };
     }
 
-    const response = await fetch(`https://api.upbit.com/v1/ticker?markets=${markets}`);
+    const apiUrl = `https://api.upbit.com/v1/ticker?markets=${markets}`;
+    const response = await fetch(apiUrl);
 
     if (!response.ok) {
       return {
@@ -21,11 +22,10 @@ exports.handler = async function(event, context) {
     }
 
     const data = await response.json();
-
     return {
       statusCode: 200,
       headers: {
-        'Access-Control-Allow-Origin': '*', // 모든 도메인에서 접근 허용
+        'Access-Control-Allow-Origin': '*',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(data),

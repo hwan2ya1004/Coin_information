@@ -334,7 +334,7 @@
         const prices = tickers.map(t => t.trade_price);
         const signals = detectSignals(prices);
 
-        // Ticker 데이터에 Order Book 데이터 결합
+        // Ticker 데이터에 Order Book 데이터 및 신호 정보 결합
         const tickersWithOrderBook = tickers.map((ticker, index) => {
           const orderBook = orderBooks.find(o => o.market === ticker.market);
           return {
@@ -479,7 +479,7 @@
             }
           }
 
-          // 매수 신호 텍스트 설정 (정렬된 티커의 combinedSignals 사용)
+          // 매수 신호 텍스트 설정
           const buySignalText = ticker.combinedSignals || '-';
 
           // 종합 점수

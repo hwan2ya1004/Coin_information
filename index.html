@@ -82,8 +82,8 @@
         <th>한글 이름</th>
         <th>현재가 (KRW)</th>
         <th>24h 변동률</th>
-        <th>24h 최고 변동률</th>
-        <th>24h 최저 변동률</th>
+        <th>24h 최고 가격</th>
+        <th>24h 최저 가격</th>
         <th>매수량</th>
         <th>매도량</th>
         <th>매수/매도 비율</th>
@@ -107,16 +107,16 @@
         <th>한글 이름</th>
         <th>현재가 (KRW)</th>
         <th>24h 변동률</th>
-        <th>24h 최고 변동률</th>
-        <th>24h 최저 변동률</th>
+        <th>24h 최고 가격</th>
+        <th>24h 최저 가격</th>
         <th>매수량</th>
         <th>매도량</th>
         <th>매수/매도 비율</th>
         <th>시장 심리</th>
         <th>상승 신호</th>
-        <th>매수 신호</th>
-        <th>종합 점수</th>
-        <th>순위 변화</th>
+        <th>매수 신호</th> <!-- 기존 컬럼 -->
+        <th>종합 점수</th> <!-- 기존 컬럼 -->
+        <th>순위 변화</th> <!-- 기존 컬럼 -->
       </tr>
     </thead>
     <tbody id="secondTop5TableBody">
@@ -153,7 +153,7 @@
       if (!res.ok) {
         throw new Error('티커 정보를 가져오지 못했습니다.');
       }
-      return res.json(); // [{market, trade_price, signed_change_rate, ...}]
+      return res.json(); // [{market, trade_price, change_rate, ...}]
     }
 
     // 3. 업비트 "호가 정보" 가져오기
@@ -168,12 +168,17 @@
 
     // 4. 업비트 "일별 캔들 정보" 가져오기
     async function fetchCandle(market) {
-      const url = `${candleURL}?market=${encodeURIComponent(market)}`;
-      const res = await fetch(url);
-      if (!res.ok) {
-        throw new Error(`캔들 데이터를 가져오지 못했습니다: ${market}`);
+      try {
+        const url = `${candleURL}?market=${encodeURIComponent(market)}`;
+        const res = await fetch(url);
+        if (!res.ok) {
+          throw new Error(`캔들 데이터를 가져오지 못했습니다: ${market}`);
+        }
+        return await res.json(); // [{market, candle_date_time_utc, high_price, low_price, ...}]
+      } catch (error) {
+        console.error(error);
+        return []; // 빈 배열 반환하여 에러 처리
       }
-      return res.json(); // [{market, candle_date_time_utc, high_price, low_price, ...}]
     }
 
     // 5. RSI 계산 함수
@@ -281,23 +286,24 @@
     function findMaxMinChangeRate(tickers) {
       if (tickers.length === 0) return { max: null, min: null };
 
-      let maxChangeRate = tickers[0].signed_change_rate;
-      let minChangeRate = tickers[0].signed_change_rate;
+      let maxChangeRate = tickers[0].change_rate || 0;
+      let minChangeRate = tickers[0].change_rate || 0;
       let maxTickers = [tickers[0]];
       let minTickers = [tickers[0]];
 
       tickers.forEach(ticker => {
-        if (ticker.signed_change_rate > maxChangeRate) {
-          maxChangeRate = ticker.signed_change_rate;
+        const changeRate = ticker.change_rate || 0;
+        if (changeRate > maxChangeRate) {
+          maxChangeRate = changeRate;
           maxTickers = [ticker];
-        } else if (ticker.signed_change_rate === maxChangeRate) {
+        } else if (changeRate === maxChangeRate) {
           maxTickers.push(ticker);
         }
 
-        if (ticker.signed_change_rate < minChangeRate) {
-          minChangeRate = ticker.signed_change_rate;
+        if (changeRate < minChangeRate) {
+          minChangeRate = changeRate;
           minTickers = [ticker];
-        } else if (ticker.signed_change_rate === minChangeRate) {
+        } else if (changeRate === minChangeRate) {
           minTickers.push(ticker);
         }
       });
@@ -305,13 +311,7 @@
       return { max: maxTickers, min: minTickers };
     }
 
-    // 12. 24h 최고 및 최저 변동률 가져오기
-    async function getMaxMinChangeRates(tickers) {
-      const maxMin = findMaxMinChangeRate(tickers);
-      return maxMin;
-    }
-
-    // 13. 테이블 렌더링
+    // 12. 테이블 렌더링
     async function renderTables() {
       try {
         statusEl.textContent = '불러오는 중...';
@@ -344,12 +344,17 @@
             combinedSignals: signals[index].combined,
           }))
           .filter(t => t.compositeScore > 0) // 매수 신호가 있는 코인만 필터링
-          .sort((a, b) => b.compositeScore - a.compositeScore || b.signed_change_rate - a.signed_change_rate);
+          .sort((a, b) => b.compositeScore - a.compositeScore || b.change_rate - a.change_rate);
 
         // 추천 코인 테이블 (상승률 TOP 5)
         top5TableBody.innerHTML = '';
         const top5Tickers = sortedTickers.slice(0, 5);
-        for (const [index, ticker] of top5Tickers.entries()) {
+
+        // 병렬로 캔들 데이터 가져오기
+        const top5CandlePromises = top5Tickers.map(ticker => fetchCandle(ticker.market));
+        const top5Candles = await Promise.all(top5CandlePromises);
+
+        top5Tickers.forEach((ticker, index) => {
           const marketInfo = marketData.find(m => m.market === ticker.market);
           
           let totalBid = 0, totalAsk = 0;
@@ -361,10 +366,10 @@
             });
           }
 
-          // 24h 최고 및 최저 변동률 가져오기
-          const candleData = await fetchCandle(ticker.market);
-          const highestChangeRate = candleData.length > 0 ? candleData[0].signed_change_rate : '-';
-          const lowestChangeRate = candleData.length > 0 ? candleData[0].signed_change_rate : '-';
+          // 24h 최고 및 최저 가격 가져오기
+          const candleData = top5Candles[index];
+          const highestPrice = candleData.length > 0 ? candleData[0].high_price : '-';
+          const lowestPrice = candleData.length > 0 ? candleData[0].low_price : '-';
 
           const ratio = totalBid && totalAsk ? (totalBid / totalAsk).toFixed(2) : '-';
           const sentiment = totalBid > totalAsk ? '긍정적' : '부정적';
@@ -375,9 +380,9 @@
               <td>${ticker.market}</td>
               <td>${marketInfo.korean_name}</td>
               <td>${ticker.trade_price.toLocaleString()}</td>
-              <td>${(ticker.signed_change_rate * 100).toFixed(2)}%</td>
-              <td>${highestChangeRate !== '-' ? (highestChangeRate * 100).toFixed(2) + '%' : '-'}</td>
-              <td>${lowestChangeRate !== '-' ? (lowestChangeRate * 100).toFixed(2) + '%' : '-'}</td>
+              <td>${(ticker.change_rate * 100).toFixed(2)}%</td>
+              <td>${highestPrice !== '-' ? highestPrice.toLocaleString() : '-'}</td>
+              <td>${lowestPrice !== '-' ? lowestPrice.toLocaleString() : '-'}</td>
               <td class="${totalBid > totalAsk ? 'highlight-bid' : ''}">${totalBid.toFixed(2)}</td>
               <td class="${totalAsk > totalBid ? 'highlight-ask' : ''}">${totalAsk.toFixed(2)}</td>
               <td>${ratio}</td>
@@ -386,20 +391,23 @@
             </tr>
           `;
           top5TableBody.insertAdjacentHTML('beforeend', row);
-        }
+        });
 
         // 두 번째 추천 코인 테이블 (종합 기준)
         secondTop5TableBody.innerHTML = '';
         const recommendedTickers = sortedTickers;
 
-        // 현재 추천 코인의 순위를 저장
+        // 병렬로 캔들 데이터 가져오기
+        const secondCandlePromises = recommendedTickers.map(ticker => fetchCandle(ticker.market));
+        const secondCandles = await Promise.all(secondCandlePromises);
+
         const currentSecondRanks = {};
 
         recommendedTickers.forEach((ticker, index) => {
           currentSecondRanks[ticker.market] = index + 1; // 순위는 1부터 시작
         });
 
-        for (const [index, ticker] of recommendedTickers.entries()) {
+        recommendedTickers.forEach((ticker, index) => {
           const marketInfo = marketData.find(m => m.market === ticker.market);
 
           let totalBid = 0, totalAsk = 0;
@@ -411,10 +419,10 @@
             });
           }
 
-          // 24h 최고 및 최저 변동률 가져오기
-          const candleData = await fetchCandle(ticker.market);
-          const highestChangeRate = candleData.length > 0 ? candleData[0].signed_change_rate : '-';
-          const lowestChangeRate = candleData.length > 0 ? candleData[0].signed_change_rate : '-';
+          // 24h 최고 및 최저 가격 가져오기
+          const candleData = secondCandles[index];
+          const highestPrice = candleData.length > 0 ? candleData[0].high_price : '-';
+          const lowestPrice = candleData.length > 0 ? candleData[0].low_price : '-';
 
           const ratio = totalBid && totalAsk ? (totalBid / totalAsk).toFixed(2) : '-';
           const sentiment = totalBid > totalAsk ? '긍정적' : '부정적';
@@ -454,9 +462,9 @@
               <td>${ticker.market}</td>
               <td>${marketInfo.korean_name}</td>
               <td>${ticker.trade_price.toLocaleString()}</td>
-              <td>${(ticker.signed_change_rate * 100).toFixed(2)}%</td>
-              <td>${highestChangeRate !== '-' ? (highestChangeRate * 100).toFixed(2) + '%' : '-'}</td>
-              <td>${lowestChangeRate !== '-' ? (lowestChangeRate * 100).toFixed(2) + '%' : '-'}</td>
+              <td>${(ticker.change_rate * 100).toFixed(2)}%</td>
+              <td>${highestPrice !== '-' ? highestPrice.toLocaleString() : '-'}</td>
+              <td>${lowestPrice !== '-' ? lowestPrice.toLocaleString() : '-'}</td>
               <td class="${totalBid > totalAsk ? 'highlight-bid' : ''}">${totalBid.toFixed(2)}</td>
               <td class="${totalAsk > totalBid ? 'highlight-ask' : ''}">${totalAsk.toFixed(2)}</td>
               <td>${ratio}</td>
@@ -468,7 +476,7 @@
             </tr>
           `;
           secondTop5TableBody.insertAdjacentHTML('beforeend', row);
-        }
+        });
 
         // 순위 변화 업데이트: 이전 순위 정보를 현재 순위로 갱신
         previousSecondRanks = currentSecondRanks;

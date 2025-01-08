@@ -63,7 +63,7 @@
       color: #333;
     }
 
-    /* 최고 및 최저 변동률 강조 */
+    /* 최고 및 최저 변동률 강조 (선택 사항) */
     .max-change {
       background-color: #d4f8d4; /* 연두색 */
     }
@@ -74,6 +74,13 @@
 </head>
 <body>
   <h1>실시간 추천 코인 및 매수/매도 비율</h1>
+
+  <!-- 24h 변동률 최저 및 최고 표시 섹션 -->
+  <div id="changeRateSummary" style="margin-bottom: 20px;">
+    <h2>24시간 변동률 요약</h2>
+    <p id="maxChangeRate">최고 변동률: -</p>
+    <p id="minChangeRate">최저 변동률: -</p>
+  </div>
 
   <div>
     <button id="refreshBtn">새로고침</button>
@@ -314,6 +321,18 @@
         // 최고 및 최저 24h 변동률 찾기
         const { max, min } = findMaxMinChangeRate(tickersWithOrderBook);
 
+        // 최고 및 최저 변동률을 HTML에 표시
+        const maxChangeRateEl = document.getElementById('maxChangeRate');
+        const minChangeRateEl = document.getElementById('minChangeRate');
+
+        if (max && min) {
+          maxChangeRateEl.textContent = `최고 변동률: ${(max.signed_change_rate * 100).toFixed(2)}% (${max.korean_name})`;
+          minChangeRateEl.textContent = `최저 변동률: ${(min.signed_change_rate * 100).toFixed(2)}% (${min.korean_name})`;
+        } else {
+          maxChangeRateEl.textContent = '최고 변동률: -';
+          minChangeRateEl.textContent = '최저 변동률: -';
+        }
+
         // 종합 점수 기준으로 추천 코인 정렬 (내림차순)
         const sortedTickers = tickersWithOrderBook
           .map((ticker, index) => ({
@@ -342,16 +361,8 @@
           const ratio = totalBid && totalAsk ? (totalBid / totalAsk).toFixed(2) : '-';
           const sentiment = totalBid > totalAsk ? '긍정적' : '부정적';
 
-          // 최고 및 최저 변동률에 따라 클래스 적용
-          let rowClass = '';
-          if (max && ticker.market === max.market) {
-            rowClass = 'max-change';
-          } else if (min && ticker.market === min.market) {
-            rowClass = 'min-change';
-          }
-
           const row = `
-            <tr class="${rowClass}">
+            <tr>
               <td>${index + 1}</td>
               <td>${ticker.market}</td>
               <td>${marketInfo.korean_name}</td>
@@ -412,14 +423,6 @@
             }
           }
 
-          // 최고 및 최저 변동률에 따라 클래스 적용
-          let rowClass = '';
-          if (max && ticker.market === max.market) {
-            rowClass = 'max-change';
-          } else if (min && ticker.market === min.market) {
-            rowClass = 'min-change';
-          }
-
           // 매수 신호 결합
           let buySignals = [];
           if (signals[index].rsiSignal) buySignals.push(signals[index].rsiSignal);
@@ -431,7 +434,7 @@
           const compositeScore = ticker.compositeScore;
 
           const row = `
-            <tr class="${rowClass}">
+            <tr>
               <td>${index + 1}</td>
               <td>${ticker.market}</td>
               <td>${marketInfo.korean_name}</td>

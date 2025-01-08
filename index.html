@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <title>실시간 추천 코인 및 매수/매도 비율</title>
   <style>
-    /* 기존 스타일 유지 */
+    /* 기존 CSS 스타일 유지 */
     body {
       font-family: sans-serif;
       margin: 30px;
@@ -96,17 +96,13 @@
     }
   </style>
 
-  <!-- Chart.js 라이브러리 추가 -->
+  <!-- Chart.js 및 관련 스크립트 제거 -->
+  <!-- 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  
-  <!-- Day.js 라이브러리 추가 -->
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
-  
-  <!-- chartjs-adapter-dayjs 어댑터 추가 -->
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-dayjs@1.0.0/dist/chartjs-adapter-dayjs.min.js"></script>
-  
-  <!-- chartjs-plugin-streaming 플러그인 추가 -->
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-streaming@2.0.0/dist/chartjs-plugin-streaming.min.js"></script>
+  -->
 </head>
 <body>
   <h1>실시간 추천 코인 및 매수/매도 비율</h1>
@@ -126,7 +122,7 @@
         <th>한글 이름</th>
         <th>현재가 (KRW)</th>
         <th>24h 변동률</th>
-        <th>실시간 퍼센트</th> <!-- 새로운 열 추가 -->
+        <th>실시간 퍼센트</th> <!-- 실시간 퍼센트 열 유지 -->
         <th>24h 최고 변동률</th>
         <th>24h 최저 변동률</th>
         <th>매수량</th>
@@ -152,7 +148,7 @@
         <th>한글 이름</th>
         <th>현재가 (KRW)</th>
         <th>24h 변동률</th>
-        <th>실시간 퍼센트</th> <!-- 새로운 열 추가 -->
+        <th>실시간 퍼센트</th> <!-- 실시간 퍼센트 열 유지 -->
         <th>24h 최고 변동률</th>
         <th>24h 최저 변동률</th>
         <th>매수량</th>
@@ -170,18 +166,17 @@
     </tbody>
   </table>
 
-  <!-- 실시간 퍼센트 차트 -->
+  <!-- 실시간 퍼센트 차트 제거 -->
+  <!-- 
   <h2>실시간 변동률 차트</h2>
   <canvas id="realTimeChart" width="400" height="200"></canvas>
+  -->
 
   <script>
-    // 글로벌 변수로 sortedTickers 정의
-    let sortedTickers = [];
-
     const marketAllURL = '/.netlify/functions/fetchMarketAll';
     const tickerURL = '/.netlify/functions/fetchTicker';
     const orderBookURL = '/.netlify/functions/fetchOrderBook';
-    const candleURL = '/.netlify/functions/fetchCandle'; // 새로운 캔들 데이터 함수 URL
+    const candleURL = '/.netlify/functions/fetchCandle'; // 캔들 데이터 함수 URL
 
     const refreshBtn = document.getElementById('refreshBtn');
     const statusEl = document.getElementById('status');
@@ -189,62 +184,6 @@
     const secondTop5TableBody = document.getElementById('secondTop5TableBody');
 
     let previousSecondRanks = {}; // 이전 두 번째 추천 코인 순위를 저장
-
-    // Chart.js 초기화 (chartjs-plugin-streaming 사용)
-    const ctx = document.getElementById('realTimeChart').getContext('2d');
-    const realTimeChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        datasets: [{
-          label: '실시간 변동률 (%)',
-          data: [],
-          borderColor: 'rgba(75, 192, 192, 1)',
-          backgroundColor: 'rgba(75, 192, 192, 0.2)',
-          fill: true,
-          tension: 0.1,
-        }]
-      },
-      options: {
-        plugins: {
-          streaming: {
-            frameRate: 30, // 초당 프레임 수
-          }
-        },
-        scales: {
-          x: {
-            type: 'realtime',
-            realtime: {
-              duration: 60000, // 최근 60초 데이터만 표시
-              refresh: 10000, // 10초마다 데이터 갱신
-              delay: 2000, // 데이터 지연 시간
-              onRefresh: async (chart) => {
-                // sortedTickers가 정의되어 있는지 확인
-                if (!sortedTickers || sortedTickers.length === 0) {
-                  console.warn('sortedTickers is not defined or empty.');
-                  return;
-                }
-
-                const latestTickers = sortedTickers.slice(0, 5); // 상위 5개 코인
-                for (const ticker of latestTickers) {
-                  const realTimeChangeRate = await fetchRealTimeChangeRate(ticker.market);
-                  if (realTimeChangeRate !== '-') {
-                    chart.data.datasets[0].data.push({
-                      x: Date.now(),
-                      y: Number(realTimeChangeRate),
-                    });
-                  }
-                }
-              }
-            }
-          },
-          y: {
-            beginAtZero: true,
-            suggestedMin: -5,
-            suggestedMax: 5,
-          }
-        }
-      }
-    });
 
     // 1. 업비트 "전체 마켓 정보" 가져오기
     async function fetchMarketAll() {
@@ -463,7 +402,7 @@
         });
 
         // 종합 점수 기준으로 추천 코인 정렬 (내림차순)
-        sortedTickers = tickersWithOrderBook
+        const sortedTickers = tickersWithOrderBook
           .filter(t => t.compositeScore > 0) // 매수 신호가 있는 코인만 필터링
           .sort((a, b) => b.compositeScore - a.compositeScore || b.change_rate - a.change_rate);
 
@@ -550,7 +489,7 @@
               <td class="${totalAsk > totalBid ? 'highlight-ask' : ''}">${totalAsk.toFixed(2)}</td>
               <td>${ratio}</td>
               <td class="${totalBid > totalAsk ? 'positive' : 'negative'}">${sentiment}</td>
-              <td class="signal">${ticker.combinedSignals || '-'}</td>
+              <td class="signal">${ticker.combined || '-'}</td>
             </tr>
           `;
           top5TableBody.insertAdjacentHTML('beforeend', row);
@@ -643,7 +582,7 @@
           }
 
           // 매수 신호 텍스트 설정
-          const buySignalText = ticker.combinedSignals || '-';
+          const buySignalText = ticker.combined || '-';
 
           // 종합 점수
           const compositeScore = ticker.compositeScore;

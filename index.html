@@ -335,21 +335,17 @@
         const signals = detectSignals(prices);
 
         // Ticker 데이터에 Order Book 데이터 결합
-        const tickersWithOrderBook = tickers.map(ticker => {
+        const tickersWithOrderBook = tickers.map((ticker, index) => {
           const orderBook = orderBooks.find(o => o.market === ticker.market);
           return {
             ...ticker,
             orderbook_units: orderBook ? orderBook.orderbook_units : [],
+            ...signals[index] // 신호 정보 추가
           };
         });
 
         // 종합 점수 기준으로 추천 코인 정렬 (내림차순)
         const sortedTickers = tickersWithOrderBook
-          .map((ticker, index) => ({
-            ...ticker,
-            compositeScore: signals[index].compositeScore,
-            combinedSignals: signals[index].combined,
-          }))
           .filter(t => t.compositeScore > 0) // 매수 신호가 있는 코인만 필터링
           .sort((a, b) => b.compositeScore - a.compositeScore || b.change_rate - a.change_rate);
 
@@ -383,7 +379,7 @@
           const sentiment = totalBid > totalAsk ? '긍정적' : '부정적';
 
           // 변동률에 따른 CSS 클래스와 기호 설정
-          const changeRate = (ticker.change_rate * 100).toFixed(2);
+          const changeRate = Number((ticker.change_rate * 100).toFixed(2));
           let changeRateClass = 'neutral-change';
           let changeRateText = `${changeRate}%`;
 
@@ -450,7 +446,7 @@
           const sentiment = totalBid > totalAsk ? '긍정적' : '부정적';
 
           // 변동률에 따른 CSS 클래스와 기호 설정
-          const changeRate = (ticker.change_rate * 100).toFixed(2);
+          const changeRate = Number((ticker.change_rate * 100).toFixed(2));
           let changeRateClass = 'neutral-change';
           let changeRateText = `${changeRate}%`;
 
@@ -483,12 +479,8 @@
             }
           }
 
-          // 매수 신호 결합
-          let buySignals = [];
-          if (signals[index].rsiSignal) buySignals.push(signals[index].rsiSignal);
-          if (signals[index].macdSignal) buySignals.push(signals[index].macdSignal);
-          if (signals[index].bollingerSignal) buySignals.push(signals[index].bollingerSignal);
-          const buySignalText = buySignals.length > 0 ? buySignals.join(', ') : '-';
+          // 매수 신호 텍스트 설정 (정렬된 티커의 combinedSignals 사용)
+          const buySignalText = ticker.combinedSignals || '-';
 
           // 종합 점수
           const compositeScore = ticker.compositeScore;

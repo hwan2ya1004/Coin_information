@@ -1,4 +1,4 @@
-const fetch = require('node-fetch');
+// netlify/functions/fetchTicker.js
 
 exports.handler = async function(event, context) {
   try {

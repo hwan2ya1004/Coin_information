@@ -78,7 +78,27 @@
       color: gray;
       font-weight: bold;
     }
+
+    /* 퍼센트 바 스타일 */
+    .percent-bar-container {
+      width: 100px; /* 바의 전체 너비 */
+      background-color: #e0e0e0;
+      border-radius: 5px;
+      overflow: hidden;
+      height: 10px;
+      display: inline-block;
+      margin-left: 10px;
+    }
+
+    .percent-bar {
+      height: 100%;
+      border-radius: 5px;
+    }
   </style>
+  <!-- Chart.js 라이브러리 추가 -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- chartjs-plugin-streaming 플러그인 추가 -->
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-streaming@2.0.0/dist/chartjs-plugin-streaming.min.js"></script>
 </head>
 <body>
   <h1>실시간 추천 코인 및 매수/매도 비율</h1>
@@ -98,6 +118,7 @@
         <th>한글 이름</th>
         <th>현재가 (KRW)</th>
         <th>24h 변동률</th>
+        <th>실시간 퍼센트</th> <!-- 새로운 열 추가 -->
         <th>24h 최고 변동률</th>
         <th>24h 최저 변동률</th>
         <th>매수량</th>
@@ -123,6 +144,7 @@
         <th>한글 이름</th>
         <th>현재가 (KRW)</th>
         <th>24h 변동률</th>
+        <th>실시간 퍼센트</th> <!-- 새로운 열 추가 -->
         <th>24h 최고 변동률</th>
         <th>24h 최저 변동률</th>
         <th>매수량</th>
@@ -140,6 +162,10 @@
     </tbody>
   </table>
 
+  <!-- 실시간 퍼센트 차트 -->
+  <h2>실시간 변동률 차트</h2>
+  <canvas id="realTimeChart" width="400" height="200"></canvas>
+
   <script>
     const marketAllURL = '/.netlify/functions/fetchMarketAll';
     const tickerURL = '/.netlify/functions/fetchTicker';
@@ -152,6 +178,56 @@
     const secondTop5TableBody = document.getElementById('secondTop5TableBody');
 
     let previousSecondRanks = {}; // 이전 두 번째 추천 코인 순위를 저장
+
+    // Chart.js 초기화 (chartjs-plugin-streaming 사용)
+    const ctx = document.getElementById('realTimeChart').getContext('2d');
+    const realTimeChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        datasets: [{
+          label: '실시간 변동률 (%)',
+          data: [],
+          borderColor: 'rgba(75, 192, 192, 1)',
+          backgroundColor: 'rgba(75, 192, 192, 0.2)',
+          fill: true,
+          tension: 0.1,
+        }]
+      },
+      options: {
+        plugins: {
+          streaming: {
+            frameRate: 30, // 초당 프레임 수
+          }
+        },
+        scales: {
+          x: {
+            type: 'realtime',
+            realtime: {
+              duration: 60000, // 최근 60초 데이터만 표시
+              refresh: 10000, // 10초마다 데이터 갱신
+              delay: 2000, // 데이터 지연 시간
+              onRefresh: async (chart) => {
+                const latestTickers = sortedTickers.slice(0, 5); // 상위 5개 코인
+                for (const ticker of latestTickers) {
+                  const realTimeChangeRate = await fetchRealTimeChangeRate(ticker.market);
+                  if (realTimeChangeRate !== '-') {
+                    chart.data.datasets[0].data.push({
+                      x: Date.now(),
+                      y: Number(realTimeChangeRate),
+                    });
+                  }
+                }
+              }
+            }
+          },
+          y: {
+            beginAtZero: true,
+            suggestedMin: -5,
+            suggestedMax: 5,
+          }
+        }
+      }
+    });
 
     // 1. 업비트 "전체 마켓 정보" 가져오기
     async function fetchMarketAll() {
@@ -190,7 +266,7 @@
         if (!res.ok) {
           throw new Error(`캔들 데이터를 가져오지 못했습니다: ${market}`);
         }
-        return await res.json(); // [{market, candle_date_time_utc, high_price, low_price, trade_price, ...}]
+        return await res.json(); // [{trade_price, ...}, ...]
       } catch (error) {
         console.error(error);
         return []; // 빈 배열 반환하여 에러 처리
@@ -298,7 +374,25 @@
       });
     }
 
-    // 11. 24시간 변동률 최저 및 최고 계산 함수
+    // 11. 실시간 퍼센트 계산 함수
+    async function fetchRealTimeChangeRate(market) {
+      try {
+        // 최근 5분간의 캔들 데이터 가져오기 (예: 1분 캔들 5개)
+        const data = await fetchCandle(market, 5);
+        if (data.length < 2) return '-';
+
+        const latestPrice = parseFloat(data[0].trade_price);
+        const previousPrice = parseFloat(data[data.length - 1].trade_price);
+
+        const realTimeChangeRate = ((latestPrice - previousPrice) / previousPrice) * 100;
+        return realTimeChangeRate.toFixed(2);
+      } catch (error) {
+        console.error(error);
+        return '-';
+      }
+    }
+
+    // 12. 24시간 변동률 최저 및 최고 계산 함수
     function calculateMaxMinChangeRate(candleData) {
       if (candleData.length === 0) return { max: '-', min: '-' };
       
@@ -318,7 +412,14 @@
       };
     }
 
-    // 12. 테이블 렌더링
+    // 13. 퍼센트 바 색상 결정 함수
+    function getPercentBarColor(changeRate) {
+      if (changeRate > 0) return 'green';
+      if (changeRate < 0) return 'red';
+      return 'gray';
+    }
+
+    // 14. 테이블 렌더링
     async function renderTables() {
       try {
         statusEl.textContent = '불러오는 중...';
@@ -357,7 +458,8 @@
         const top5CandlePromises = top5Tickers.map(ticker => fetchCandle(ticker.market, 24));
         const top5Candles = await Promise.all(top5CandlePromises);
 
-        top5Tickers.forEach((ticker, index) => {
+        // 테이블 행 생성 (for...of 사용)
+        for (const [index, ticker] of top5Tickers.entries()) {
           const marketInfo = marketData.find(m => m.market === ticker.market);
           
           let totalBid = 0, totalAsk = 0;
@@ -393,6 +495,25 @@
             changeRateText = `→ ${changeRate}%`;
           }
 
+          // 실시간 퍼센트 계산
+          const realTimeChangeRate = await fetchRealTimeChangeRate(ticker.market);
+          let realTimeChangeClass = 'neutral-change';
+          let realTimeChangeText = `${realTimeChangeRate}%`;
+
+          if (realTimeChangeRate > 0) {
+            realTimeChangeClass = 'positive-change';
+            realTimeChangeText = `▲ +${realTimeChangeRate}%`;
+          } else if (realTimeChangeRate < 0) {
+            realTimeChangeClass = 'negative-change';
+            realTimeChangeText = `▼ ${realTimeChangeRate}%`;
+          } else {
+            realTimeChangeText = `→ ${realTimeChangeRate}%`;
+          }
+
+          // 퍼센트 바 계산 (예: -5% ~ +5% 범위)
+          const barWidth = realTimeChangeRate !== '-' ? Math.min(Math.max(realTimeChangeRate + 5, 0), 10) * 10 : 50; // 0 ~ 100%
+          const percentBarColor = getPercentBarColor(realTimeChangeRate);
+
           const row = `
             <tr>
               <td>${index + 1}</td>
@@ -400,6 +521,12 @@
               <td>${marketInfo.korean_name}</td>
               <td>${ticker.trade_price.toLocaleString()}</td>
               <td class="${changeRateClass}">${changeRateText}</td>
+              <td class="${realTimeChangeClass}">
+                ${realTimeChangeText}
+                <div class="percent-bar-container">
+                  <div class="percent-bar" style="width: ${barWidth}%; background-color: ${percentBarColor};"></div>
+                </div>
+              </td> <!-- 실시간 퍼센트 추가 -->
               <td>${max !== '-' ? (max * 100).toFixed(2) + '%' : '-'}</td>
               <td>${min !== '-' ? (min * 100).toFixed(2) + '%' : '-'}</td>
               <td class="${totalBid > totalAsk ? 'highlight-bid' : ''}">${totalBid.toFixed(2)}</td>
@@ -410,7 +537,7 @@
             </tr>
           `;
           top5TableBody.insertAdjacentHTML('beforeend', row);
-        });
+        }
 
         // 두 번째 추천 코인 테이블 (종합 기준)
         secondTop5TableBody.innerHTML = '';
@@ -426,7 +553,7 @@
           currentSecondRanks[ticker.market] = index + 1; // 순위는 1부터 시작
         });
 
-        recommendedTickers.forEach((ticker, index) => {
+        for (const [index, ticker] of recommendedTickers.entries()) {
           const marketInfo = marketData.find(m => m.market === ticker.market);
 
           let totalBid = 0, totalAsk = 0;
@@ -460,6 +587,25 @@
             changeRateText = `→ ${changeRate}%`;
           }
 
+          // 실시간 퍼센트 계산
+          const realTimeChangeRate = await fetchRealTimeChangeRate(ticker.market);
+          let realTimeChangeClass = 'neutral-change';
+          let realTimeChangeText = `${realTimeChangeRate}%`;
+
+          if (realTimeChangeRate > 0) {
+            realTimeChangeClass = 'positive-change';
+            realTimeChangeText = `▲ +${realTimeChangeRate}%`;
+          } else if (realTimeChangeRate < 0) {
+            realTimeChangeClass = 'negative-change';
+            realTimeChangeText = `▼ ${realTimeChangeRate}%`;
+          } else {
+            realTimeChangeText = `→ ${realTimeChangeRate}%`;
+          }
+
+          // 퍼센트 바 계산 (예: -5% ~ +5% 범위)
+          const barWidth = realTimeChangeRate !== '-' ? Math.min(Math.max(realTimeChangeRate + 5, 0), 10) * 10 : 50; // 0 ~ 100%
+          const percentBarColor = getPercentBarColor(realTimeChangeRate);
+
           // 이전 순위 가져오기
           const previousRank = previousSecondRanks[ticker.market] || '-';
           let rankChange = '-';
@@ -492,6 +638,12 @@
               <td>${marketInfo.korean_name}</td>
               <td>${ticker.trade_price.toLocaleString()}</td>
               <td class="${changeRateClass}">${changeRateText}</td>
+              <td class="${realTimeChangeClass}">
+                ${realTimeChangeText}
+                <div class="percent-bar-container">
+                  <div class="percent-bar" style="width: ${barWidth}%; background-color: ${percentBarColor};"></div>
+                </div>
+              </td> <!-- 실시간 퍼센트 추가 -->
               <td>${max !== '-' ? (max * 100).toFixed(2) + '%' : '-'}</td>
               <td>${min !== '-' ? (min * 100).toFixed(2) + '%' : '-'}</td>
               <td class="${totalBid > totalAsk ? 'highlight-bid' : ''}">${totalBid.toFixed(2)}</td>
@@ -505,7 +657,7 @@
             </tr>
           `;
           secondTop5TableBody.insertAdjacentHTML('beforeend', row);
-        });
+        }
 
         // 순위 변화 업데이트: 이전 순위 정보를 현재 순위로 갱신
         previousSecondRanks = currentSecondRanks;

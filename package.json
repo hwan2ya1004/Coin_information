@@ -1,6 +1,6 @@
 {
   "dependencies": {
     "node-fetch": "^2.6.7",
-    // 기타 종속성들...
+    
   }
 }

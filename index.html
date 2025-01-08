@@ -62,6 +62,22 @@
       font-weight: bold;
       color: #333;
     }
+
+    /* 변동률 색상 클래스 */
+    .positive-change {
+      color: green;
+      font-weight: bold;
+    }
+
+    .negative-change {
+      color: red;
+      font-weight: bold;
+    }
+
+    .neutral-change {
+      color: gray;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
@@ -174,7 +190,7 @@
         if (!res.ok) {
           throw new Error(`캔들 데이터를 가져오지 못했습니다: ${market}`);
         }
-        return await res.json(); // [{market, candle_date_time_utc, high_price, low_price, change_rate, ...}]
+        return await res.json(); // [{market, candle_date_time_utc, high_price, low_price, trade_price, ...}]
       } catch (error) {
         console.error(error);
         return []; // 빈 배열 반환하여 에러 처리
@@ -366,13 +382,28 @@
           const ratio = totalBid && totalAsk ? (totalBid / totalAsk).toFixed(2) : '-';
           const sentiment = totalBid > totalAsk ? '긍정적' : '부정적';
 
+          // 변동률에 따른 CSS 클래스와 기호 설정
+          const changeRate = (ticker.change_rate * 100).toFixed(2);
+          let changeRateClass = 'neutral-change';
+          let changeRateText = `${changeRate}%`;
+
+          if (changeRate > 0) {
+            changeRateClass = 'positive-change';
+            changeRateText = `▲ +${changeRate}%`;
+          } else if (changeRate < 0) {
+            changeRateClass = 'negative-change';
+            changeRateText = `▼ ${changeRate}%`;
+          } else {
+            changeRateText = `→ ${changeRate}%`;
+          }
+
           const row = `
             <tr>
               <td>${index + 1}</td>
               <td>${ticker.market}</td>
               <td>${marketInfo.korean_name}</td>
               <td>${ticker.trade_price.toLocaleString()}</td>
-              <td>${(ticker.change_rate * 100).toFixed(2)}%</td>
+              <td class="${changeRateClass}">${changeRateText}</td>
               <td>${max !== '-' ? (max * 100).toFixed(2) + '%' : '-'}</td>
               <td>${min !== '-' ? (min * 100).toFixed(2) + '%' : '-'}</td>
               <td class="${totalBid > totalAsk ? 'highlight-bid' : ''}">${totalBid.toFixed(2)}</td>
@@ -418,6 +449,21 @@
           const ratio = totalBid && totalAsk ? (totalBid / totalAsk).toFixed(2) : '-';
           const sentiment = totalBid > totalAsk ? '긍정적' : '부정적';
 
+          // 변동률에 따른 CSS 클래스와 기호 설정
+          const changeRate = (ticker.change_rate * 100).toFixed(2);
+          let changeRateClass = 'neutral-change';
+          let changeRateText = `${changeRate}%`;
+
+          if (changeRate > 0) {
+            changeRateClass = 'positive-change';
+            changeRateText = `▲ +${changeRate}%`;
+          } else if (changeRate < 0) {
+            changeRateClass = 'negative-change';
+            changeRateText = `▼ ${changeRate}%`;
+          } else {
+            changeRateText = `→ ${changeRate}%`;
+          }
+
           // 이전 순위 가져오기
           const previousRank = previousSecondRanks[ticker.market] || '-';
           let rankChange = '-';
@@ -453,7 +499,7 @@
               <td>${ticker.market}</td>
               <td>${marketInfo.korean_name}</td>
               <td>${ticker.trade_price.toLocaleString()}</td>
-              <td>${(ticker.change_rate * 100).toFixed(2)}%</td>
+              <td class="${changeRateClass}">${changeRateText}</td>
               <td>${max !== '-' ? (max * 100).toFixed(2) + '%' : '-'}</td>
               <td>${min !== '-' ? (min * 100).toFixed(2) + '%' : '-'}</td>
               <td class="${totalBid > totalAsk ? 'highlight-bid' : ''}">${totalBid.toFixed(2)}</td>

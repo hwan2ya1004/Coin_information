@@ -82,8 +82,6 @@
         <th>한글 이름</th>
         <th>현재가 (KRW)</th>
         <th>24h 변동률</th>
-        <th>24h 최고 가격</th>
-        <th>24h 최저 가격</th>
         <th>매수량</th>
         <th>매도량</th>
         <th>매수/매도 비율</th>
@@ -107,8 +105,6 @@
         <th>한글 이름</th>
         <th>현재가 (KRW)</th>
         <th>24h 변동률</th>
-        <th>24h 최고 가격</th>
-        <th>24h 최저 가격</th>
         <th>매수량</th>
         <th>매도량</th>
         <th>매수/매도 비율</th>
@@ -153,7 +149,7 @@
       if (!res.ok) {
         throw new Error('티커 정보를 가져오지 못했습니다.');
       }
-      return res.json(); // [{market, trade_price, change_rate, ...}]
+      return res.json(); // [{market, trade_price, signed_change_rate, ...}]
     }
 
     // 3. 업비트 "호가 정보" 가져오기
@@ -286,13 +282,13 @@
     function findMaxMinChangeRate(tickers) {
       if (tickers.length === 0) return { max: null, min: null };
 
-      let maxChangeRate = tickers[0].change_rate || 0;
-      let minChangeRate = tickers[0].change_rate || 0;
+      let maxChangeRate = tickers[0].signed_change_rate || tickers[0].change_rate;
+      let minChangeRate = tickers[0].signed_change_rate || tickers[0].change_rate;
       let maxTickers = [tickers[0]];
       let minTickers = [tickers[0]];
 
       tickers.forEach(ticker => {
-        const changeRate = ticker.change_rate || 0;
+        const changeRate = ticker.signed_change_rate || ticker.change_rate;
         if (changeRate > maxChangeRate) {
           maxChangeRate = changeRate;
           maxTickers = [ticker];
@@ -366,10 +362,10 @@
             });
           }
 
-          // 24h 최고 및 최저 가격 가져오기
+          // 24h 최고 및 최저 변동률 가져오기
           const candleData = top5Candles[index];
-          const highestPrice = candleData.length > 0 ? candleData[0].high_price : '-';
-          const lowestPrice = candleData.length > 0 ? candleData[0].low_price : '-';
+          const highestChangeRate = candleData.length > 0 ? (candleData[0].change_rate || 0) : '-';
+          const lowestChangeRate = candleData.length > 0 ? (candleData[0].change_rate || 0) : '-';
 
           const ratio = totalBid && totalAsk ? (totalBid / totalAsk).toFixed(2) : '-';
           const sentiment = totalBid > totalAsk ? '긍정적' : '부정적';
@@ -381,8 +377,8 @@
               <td>${marketInfo.korean_name}</td>
               <td>${ticker.trade_price.toLocaleString()}</td>
               <td>${(ticker.change_rate * 100).toFixed(2)}%</td>
-              <td>${highestPrice !== '-' ? highestPrice.toLocaleString() : '-'}</td>
-              <td>${lowestPrice !== '-' ? lowestPrice.toLocaleString() : '-'}</td>
+              <td>${highestChangeRate !== '-' ? (highestChangeRate * 100).toFixed(2) + '%' : '-'}</td>
+              <td>${lowestChangeRate !== '-' ? (lowestChangeRate * 100).toFixed(2) + '%' : '-'}</td>
               <td class="${totalBid > totalAsk ? 'highlight-bid' : ''}">${totalBid.toFixed(2)}</td>
               <td class="${totalAsk > totalBid ? 'highlight-ask' : ''}">${totalAsk.toFixed(2)}</td>
               <td>${ratio}</td>
@@ -419,10 +415,10 @@
             });
           }
 
-          // 24h 최고 및 최저 가격 가져오기
+          // 24h 최고 및 최저 변동률 가져오기
           const candleData = secondCandles[index];
-          const highestPrice = candleData.length > 0 ? candleData[0].high_price : '-';
-          const lowestPrice = candleData.length > 0 ? candleData[0].low_price : '-';
+          const highestChangeRate = candleData.length > 0 ? (candleData[0].change_rate || 0) : '-';
+          const lowestChangeRate = candleData.length > 0 ? (candleData[0].change_rate || 0) : '-';
 
           const ratio = totalBid && totalAsk ? (totalBid / totalAsk).toFixed(2) : '-';
           const sentiment = totalBid > totalAsk ? '긍정적' : '부정적';
@@ -463,8 +459,8 @@
               <td>${marketInfo.korean_name}</td>
               <td>${ticker.trade_price.toLocaleString()}</td>
               <td>${(ticker.change_rate * 100).toFixed(2)}%</td>
-              <td>${highestPrice !== '-' ? highestPrice.toLocaleString() : '-'}</td>
-              <td>${lowestPrice !== '-' ? lowestPrice.toLocaleString() : '-'}</td>
+              <td>${highestChangeRate !== '-' ? (highestChangeRate * 100).toFixed(2) + '%' : '-'}</td>
+              <td>${lowestChangeRate !== '-' ? (lowestChangeRate * 100).toFixed(2) + '%' : '-'}</td>
               <td class="${totalBid > totalAsk ? 'highlight-bid' : ''}">${totalBid.toFixed(2)}</td>
               <td class="${totalAsk > totalBid ? 'highlight-ask' : ''}">${totalAsk.toFixed(2)}</td>
               <td>${ratio}</td>

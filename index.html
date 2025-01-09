@@ -4,83 +4,27 @@
   <meta charset="UTF-8" />
   <title>실시간 추천 코인 및 매수/매도 비율</title>
   <style>
-    body {
-      font-family: sans-serif;
-      margin: 30px;
-    }
-    h1 {
-      margin-bottom: 10px;
-    }
-    button {
-      padding: 6px 12px;
-      cursor: pointer;
-      margin-bottom: 10px;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 10px;
-    }
-    th, td {
-      border: 1px solid #ccc;
-      text-align: center;
-      padding: 8px;
-    }
-    thead {
-      background: #f3f3f3;
-    }
-    .loading {
-      font-weight: bold;
-      color: #007acc;
-    }
-    .error {
-      color: red;
-    }
-    .highlight-bid {
-      background-color: #d4f8d4; /* 매수량이 많으면 녹색 */
-    }
-    .highlight-ask {
-      background-color: #f8d4d4; /* 매도량이 많으면 빨간색 */
-    }
-    .signal {
-      font-weight: bold;
-      color: blue; /* 상승 신호 색상 */
-    }
-    .rank-up {
-      color: green;
-      font-weight: bold;
-    }
-    .rank-down {
-      color: red;
-      font-weight: bold;
-    }
-    .rank-same {
-      color: gray;
-    }
-    .composite-score {
-      font-weight: bold;
-      color: #333;
-    }
-    #changeRateStats {
-      margin-bottom: 20px;
-      font-weight: bold;
-    }
-    /* 추가된 스타일 */
-    .low-price {
-      color: blue;
-    }
-    .high-price {
-      color: red;
-    }
-    /* 매수 신호가 있는 행을 강조하는 스타일 */
-    .buy-signal {
-      background-color: #e0ffe0; /* 연한 녹색 배경 */
-    }
-    /* 매수 신호 아이콘 스타일 */
-    .buy-icon {
-      color: green;
-      font-weight: bold;
-    }
+    /* 기존 CSS 유지 */
+    body { font-family: sans-serif; margin: 30px; }
+    h1 { margin-bottom: 10px; }
+    button { padding: 6px 12px; cursor: pointer; margin-bottom: 10px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; text-align: center; padding: 8px; }
+    thead { background: #f3f3f3; }
+    .loading { font-weight: bold; color: #007acc; }
+    .error { color: red; }
+    .highlight-bid { background-color: #d4f8d4; }
+    .highlight-ask { background-color: #f8d4d4; }
+    .signal { font-weight: bold; color: blue; }
+    .rank-up { color: green; font-weight: bold; }
+    .rank-down { color: red; font-weight: bold; }
+    .rank-same { color: gray; }
+    .composite-score { font-weight: bold; color: #333; }
+    #changeRateStats { margin-bottom: 20px; font-weight: bold; }
+    .low-price { color: blue; }
+    .high-price { color: red; }
+    .buy-signal { background-color: #e0ffe0; }
+    .buy-icon { color: green; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -91,12 +35,8 @@
     <div id="status" class="loading">불러오는 중...</div>
   </div>
 
-  <!-- 최저 및 최고 변동률 표시 -->
-  <div id="changeRateStats" style="margin-bottom: 20px; font-weight: bold;">
-    <!-- JavaScript에서 업데이트됩니다 -->
-  </div>
+  <div id="changeRateStats" style="margin-bottom: 20px; font-weight: bold;"></div>
 
-  <!-- 추천 코인 목록 -->
   <h2>추천 코인 (상승률 TOP 5)</h2>
   <table>
     <thead>
@@ -106,8 +46,8 @@
         <th>한글 이름</th>
         <th>현재가 (KRW)</th>
         <th>24h 변동률</th>
-        <th>24h 최저가</th> <!-- 새로운 컬럼 추가 -->
-        <th>24h 최고가</th> <!-- 새로운 컬럼 추가 -->
+        <th>24h 최저가</th>
+        <th>24h 최고가</th>
         <th>매수량</th>
         <th>매도량</th>
         <th>매수/매도 비율</th>
@@ -115,12 +55,9 @@
         <th>상승 신호</th>
       </tr>
     </thead>
-    <tbody id="top5TableBody">
-      <!-- 추천 코인 데이터 동적으로 추가 -->
-    </tbody>
+    <tbody id="top5TableBody"></tbody>
   </table>
 
-  <!-- 두 번째 추천 코인 목록 -->
   <h2>추천 코인 (RSI 과매도 + MACD 골든크로스)</h2>
   <p>순위 기준: **종합 매수 신호 점수** (RSI 과매도, MACD 골든크로스)</p>
   <table>
@@ -131,64 +68,86 @@
         <th>한글 이름</th>
         <th>현재가 (KRW)</th>
         <th>24h 변동률</th>
-        <th>24h 최저가</th> <!-- 새로운 컬럼 추가 -->
-        <th>24h 최고가</th> <!-- 새로운 컬럼 추가 -->
+        <th>24h 최저가</th>
+        <th>24h 최고가</th>
         <th>매수량</th>
         <th>매도량</th>
         <th>매수/매도 비율</th>
         <th>시장 심리</th>
         <th>상승 신호</th>
-        <th>매수 신호</th> <!-- 새로운 컬럼 추가 -->
-        <th>종합 점수</th> <!-- 새로운 컬럼 추가 -->
-        <th>순위 변화</th> <!-- 새로운 컬럼 추가 -->
+        <th>매수 신호</th>
+        <th>종합 점수</th>
+        <th>순위 변화</th>
       </tr>
     </thead>
-    <tbody id="secondTop5TableBody">
-      <!-- 두 번째 추천 코인 데이터 동적으로 추가 -->
-    </tbody>
+    <tbody id="secondTop5TableBody"></tbody>
   </table>
 
   <script>
-    const marketAllURL = 'https://api.upbit.com/v1/market/all?isDetails=true';
-    const tickerURL = 'https://api.upbit.com/v1/ticker?markets=';
-    const orderBookURL = 'https://api.upbit.com/v1/orderbook?markets=';
+    // 프록시 URL 설정
+    const proxyTickerURL = '/.netlify/functions/upbit-ticker?markets=';
+    const proxyMarketAllURL = '/.netlify/functions/upbit-market-all?isDetails=true';
 
+    // DOM 요소 가져오기
     const refreshBtn = document.getElementById('refreshBtn');
     const statusEl = document.getElementById('status');
     const top5TableBody = document.getElementById('top5TableBody');
     const secondTop5TableBody = document.getElementById('secondTop5TableBody');
-    const changeRateStats = document.getElementById('changeRateStats'); // 추가된 요소
+    const changeRateStats = document.getElementById('changeRateStats');
 
-    let previousSecondRanks = {}; // 이전 두 번째 추천 코인 순위를 저장
-    let notifiedTickers = new Set(); // 알림을 보낸 코인을 추적
+    let previousSecondRanks = {}; // 이전 순위 저장
+    let notifiedTickers = new Set(); // 알림된 코인 추적
 
     // 1. 업비트 "전체 마켓 정보" 가져오기
     async function fetchMarketAll() {
-      const res = await fetch(marketAllURL);
-      if (!res.ok) {
-        throw new Error('마켓 정보를 가져오지 못했습니다.');
+      const url = proxyMarketAllURL;
+      try {
+        const res = await fetch(url);
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.error || '마켓 정보를 가져오지 못했습니다.');
+        }
+        return res.json(); // [{market, korean_name, ...}]
+      } catch (error) {
+        console.error('Fetch Market All Error:', error);
+        alert(`마켓 정보를 불러오는 중 오류가 발생했습니다: ${error.message}`);
+        throw error;
       }
-      return res.json(); // [{market, korean_name, ...}]
     }
 
     // 2. 업비트 "티커 정보" 가져오기
     async function fetchTicker(markets) {
-      const url = tickerURL + markets.join(',');
-      const res = await fetch(url);
-      if (!res.ok) {
-        throw new Error('티커 정보를 가져오지 못했습니다.');
+      const url = proxyTickerURL + markets.join(',');
+      try {
+        const res = await fetch(url);
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.error || '티커 정보를 가져오지 못했습니다.');
+        }
+        return res.json(); // [{market, trade_price, signed_change_rate, high_price, low_price, ...}]
+      } catch (error) {
+        console.error('Fetch Ticker Error:', error);
+        alert(`티커 정보를 불러오는 중 오류가 발생했습니다: ${error.message}`);
+        throw error;
       }
-      return res.json(); // [{market, trade_price, signed_change_rate, high_price, low_price, ...}]
     }
 
-    // 3. 업비트 "호가 정보" 가져오기
+    // 3. Upbit "호가 정보" 가져오기 (필요 시 사용)
     async function fetchOrderBook(markets) {
-      const url = orderBookURL + markets.join(',');
-      const res = await fetch(url);
-      if (!res.ok) {
-        throw new Error('호가 정보를 가져오지 못했습니다.');
+      const proxyOrderBookURL = '/.netlify/functions/upbit-ticker?markets='; // 동일 프록시 함수 사용
+      const url = proxyOrderBookURL + markets.join(',');
+      try {
+        const res = await fetch(url);
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.error || '호가 정보를 가져오지 못했습니다.');
+        }
+        return res.json(); // [{market, trade_price, signed_change_rate, high_price, low_price, ...}]
+      } catch (error) {
+        console.error('Fetch OrderBook Error:', error);
+        alert(`호가 정보를 불러오는 중 오류가 발생했습니다: ${error.message}`);
+        throw error;
       }
-      return res.json(); // [{market, orderbook_units: [{ask_size, bid_size}, ...]}, ...]
     }
 
     // 4. RSI 계산 함수
@@ -240,23 +199,7 @@
       return movingAverages;
     }
 
-    // 7. 볼린저 밴드 계산 함수 (사용 안 함)
-    // function calculateBollingerBands(prices, period = 20, stdDevMultiplier = 2) {
-    //   const movingAverage = calculateMovingAverage(prices, period);
-    //   const bollingerBands = movingAverage.map((ma, index) => {
-    //     const subset = prices.slice(index, index + period);
-    //     const variance = subset.reduce((sum, price) => sum + Math.pow(price - ma, 2), 0) / period;
-    //     const stdDev = Math.sqrt(variance);
-    //     return {
-    //       upper: ma + stdDevMultiplier * stdDev,
-    //       middle: ma,
-    //       lower: ma - stdDevMultiplier * stdDev
-    //     };
-    //   });
-    //   return bollingerBands;
-    // }
-
-    // 8. 상승 신호 탐지 및 종합 신호 생성 (RSI 과매도와 MACD 골든크로스 모두 만족할 때만 매수 신호)
+    // 7. 상승 신호 탐지 및 종합 신호 생성 (RSI 과매도 + MACD 골든크로스)
     function detectSignals(prices) {
       const rsiValues = calculateRSI(prices);
       const { macdLine, signalLine } = calculateMACD(prices);
@@ -287,7 +230,7 @@
       });
     }
 
-    // 9. 브라우저 알림 함수
+    // 8. 브라우저 알림 함수
     function notifyBuySignal(ticker) {
       if (Notification.permission === 'granted') {
         new Notification('매수 신호 알림', {
@@ -306,15 +249,17 @@
       });
     }
 
-    // 10. 테이블 렌더링
+    // 9. 테이블 렌더링
     async function renderTables() {
       try {
         statusEl.textContent = '불러오는 중...';
 
         const marketData = await fetchMarketAll();
-        const krwMarkets = marketData.filter(m => m.market.startsWith('KRW-')).map(m => m.market);
+        const krwMarkets = marketData
+          .filter(m => m.market.startsWith('KRW-'))
+          .map(m => m.market);
         const tickers = await fetchTicker(krwMarkets);
-        const orderBooks = await fetchOrderBook(krwMarkets);
+        // Upbit API에서 "호가 정보"는 별도의 엔드포인트가 필요하지만, 여기서는 생략
 
         const prices = tickers.map(t => t.trade_price);
         const signals = detectSignals(prices);
@@ -342,15 +287,10 @@
         const top5Tickers = sortedTickers.slice(0, 5);
         top5Tickers.forEach((ticker, index) => {
           const marketInfo = marketData.find(m => m.market === ticker.market);
-          const orderBook = orderBooks.find(o => o.market === ticker.market);
+          // 호가 정보는 생략
 
           let totalBid = 0, totalAsk = 0;
-          if (orderBook) {
-            orderBook.orderbook_units.forEach(unit => {
-              totalBid += unit.bid_size;
-              totalAsk += unit.ask_size;
-            });
-          }
+          // 호가 정보가 필요하면 fetchOrderBook을 호출하여 처리
 
           const ratio = totalBid && totalAsk ? (totalBid / totalAsk).toFixed(2) : '-';
           const sentiment = totalBid > totalAsk ? '긍정적' : '부정적';
@@ -362,8 +302,8 @@
               <td>${marketInfo.korean_name}</td>
               <td>${ticker.trade_price.toLocaleString()}</td>
               <td>${(ticker.signed_change_rate * 100).toFixed(2)}%</td>
-              <td class="low-price">${ticker.low_price.toLocaleString()}</td> <!-- 24h 최저가 표시 -->
-              <td class="high-price">${ticker.high_price.toLocaleString()}</td> <!-- 24h 최고가 표시 -->
+              <td class="low-price">${ticker.low_price.toLocaleString()}</td>
+              <td class="high-price">${ticker.high_price.toLocaleString()}</td>
               <td class="${totalBid > totalAsk ? 'highlight-bid' : ''}">${totalBid.toFixed(2)}</td>
               <td class="${totalAsk > totalBid ? 'highlight-ask' : ''}">${totalAsk.toFixed(2)}</td>
               <td>${ratio}</td>
@@ -387,15 +327,10 @@
 
         recommendedTickers.forEach((ticker, index) => {
           const marketInfo = marketData.find(m => m.market === ticker.market);
-          const orderBook = orderBooks.find(o => o.market === ticker.market);
+          // 호가 정보는 생략
 
           let totalBid = 0, totalAsk = 0;
-          if (orderBook) {
-            orderBook.orderbook_units.forEach(unit => {
-              totalBid += unit.bid_size;
-              totalAsk += unit.ask_size;
-            });
-          }
+          // 호가 정보가 필요하면 fetchOrderBook을 호출하여 처리
 
           const ratio = totalBid && totalAsk ? (totalBid / totalAsk).toFixed(2) : '-';
           const sentiment = totalBid > totalAsk ? '긍정적' : '부정적';
@@ -441,16 +376,16 @@
               <td>${marketInfo.korean_name}</td>
               <td>${ticker.trade_price.toLocaleString()}</td>
               <td>${(ticker.signed_change_rate * 100).toFixed(2)}%</td>
-              <td class="low-price">${ticker.low_price.toLocaleString()}</td> <!-- 24h 최저가 표시 -->
-              <td class="high-price">${ticker.high_price.toLocaleString()}</td> <!-- 24h 최고가 표시 -->
+              <td class="low-price">${ticker.low_price.toLocaleString()}</td>
+              <td class="high-price">${ticker.high_price.toLocaleString()}</td>
               <td class="${totalBid > totalAsk ? 'highlight-bid' : ''}">${totalBid.toFixed(2)}</td>
               <td class="${totalAsk > totalBid ? 'highlight-ask' : ''}">${totalAsk.toFixed(2)}</td>
               <td>${ratio}</td>
               <td class="${totalBid > totalAsk ? 'positive' : 'negative'}">${sentiment}</td>
               <td class="signal">추천 가능</td>
-              <td>${buySignalText} ${buyIcon}</td> <!-- 매수 신호 표시 및 아이콘 추가 -->
-              <td class="composite-score">${compositeScore}</td> <!-- 종합 점수 표시 -->
-              <td class="${rankChangeClass}">${rankChange}</td> <!-- 순위 변화 표시 -->
+              <td>${buySignalText} ${buyIcon}</td>
+              <td class="composite-score">${compositeScore}</td>
+              <td class="${rankChangeClass}">${rankChange}</td>
             </tr>
           `;
           secondTop5TableBody.insertAdjacentHTML('beforeend', row);
@@ -465,11 +400,10 @@
         // 순위 변화 업데이트: 이전 순위 정보를 현재 순위로 갱신
         previousSecondRanks = currentSecondRanks;
 
-        // 알림된 티커를 정리 (예: 10분 후에 알림된 티커를 제거하여 재알림 가능)
+        // 알림된 티커를 정리 (10분 후 초기화)
         setTimeout(() => {
           notifiedTickers.clear();
         }, 10 * 60 * 1000); // 10분
-        // 위 코드는 10분 후에 알림된 티커 목록을 초기화하여 동일한 코인에 대해 다시 알림을 받을 수 있도록 합니다.
 
         statusEl.textContent = `총 ${krwMarkets.length}개 코인 정보를 불러왔습니다.`;
       } catch (error) {

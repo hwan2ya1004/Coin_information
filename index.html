@@ -23,8 +23,10 @@
     #changeRateStats { margin-bottom: 20px; font-weight: bold; }
     .low-price { color: blue; }
     .high-price { color: red; }
-    .buy-signal { background-color: #e0ffe0; }
+    .buy-signal { background-color: #e0ffe0; } /* 매수 신호 행 강조 */
+    .sell-signal { background-color: #ffe0e0; } /* 매도 신호 행 강조 */
     .buy-icon { color: green; font-weight: bold; }
+    .sell-icon { color: red; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -58,8 +60,8 @@
     <tbody id="top5TableBody"></tbody>
   </table>
 
-  <h2>추천 코인 (RSI 과매도 + MACD 골든크로스)</h2>
-  <p>순위 기준: **종합 매수 신호 점수** (RSI 과매도, MACD 골든크로스)</p>
+  <h2>추천 코인 (RSI 과매도 + MACD 골든크로스 / RSI 과매수 + MACD 데드크로스)</h2>
+  <p>순위 기준: **종합 매수/매도 신호 점수** (RSI 과매도, MACD 골든크로스, RSI 과매수, MACD 데드크로스)</p>
   <table>
     <thead>
       <tr>
@@ -76,6 +78,7 @@
         <th>시장 심리</th>
         <th>상승 신호</th>
         <th>매수 신호</th>
+        <th>매도 신호</th> <!-- 새로운 컬럼 추가 -->
         <th>종합 점수</th>
         <th>순위 변화</th>
       </tr>
@@ -181,33 +184,44 @@
       return movingAverages;
     }
 
-    // 7. 상승 신호 탐지 및 종합 신호 생성 (RSI 과매도 + MACD 골든크로스)
+    // 7. 상승 및 하락 신호 탐지 및 종합 신호 생성 (RSI 과매도 + MACD 골든크로스, RSI 과매수 + MACD 데드크로스)
     function detectSignals(prices) {
       const rsiValues = calculateRSI(prices);
       const { macdLine, signalLine } = calculateMACD(prices);
 
       return prices.map((price, index) => {
-        // RSI 과매도 조건 (RSI <= 30)
-        const rsiSignal = rsiValues[index - 14] <= 30 ? 'RSI 과매도' : '';
+        // 매수 신호 조건 (RSI 과매도, MACD 골든크로스)
+        const rsiBuySignal = rsiValues[index - 14] <= 30 ? 'RSI 과매도' : '';
+        const macdBuySignal = index >= 26 && macdLine[index - 26] > signalLine[index - 26] ? 'MACD 골든크로스' : '';
 
-        // MACD 골든크로스 조건 (MACD > Signal Line)
-        const macdSignal = index >= 26 && macdLine[index - 26] > signalLine[index - 26] ? 'MACD 골든크로스' : '';
+        // 매도 신호 조건 (RSI 과매수, MACD 데드크로스)
+        const rsiSellSignal = rsiValues[index - 14] >= 70 ? 'RSI 과매수' : '';
+        const macdSellSignal = index >= 26 && macdLine[index - 26] < signalLine[index - 26] ? 'MACD 데드크로스' : '';
 
-        // 두 신호가 모두 발생한 경우에만 매수 신호로 간주
-        if (rsiSignal && macdSignal) {
-          return { 
-            rsiSignal, 
-            macdSignal, 
-            combined: `${rsiSignal}, ${macdSignal}`,
-            compositeScore: 2 // 두 신호 모두 만족
-          };
+        // 매수 신호
+        let buySignal = '';
+        let sellSignal = '';
+        let compositeScore = 0;
+
+        if (rsiBuySignal && macdBuySignal) {
+          buySignal = `${rsiBuySignal}, ${macdBuySignal}`;
+          compositeScore += 2; // 두 신호 모두 만족
         }
 
-        return { 
-          rsiSignal: '',
-          macdSignal: '',
-          combined: '',
-          compositeScore: 0
+        // 매도 신호
+        if (rsiSellSignal && macdSellSignal) {
+          sellSignal = `${rsiSellSignal}, ${macdSellSignal}`;
+          compositeScore += 2; // 두 신호 모두 만족
+        }
+
+        return {
+          rsiBuySignal,
+          macdBuySignal,
+          buySignal,
+          rsiSellSignal,
+          macdSellSignal,
+          sellSignal,
+          compositeScore
         };
       });
     }
@@ -217,6 +231,16 @@
       if (Notification.permission === 'granted') {
         new Notification('매수 신호 알림', {
           body: `${ticker.korean_name} (${ticker.market}) 에서 RSI 과매도 및 MACD 골든크로스 신호가 발생했습니다.`,
+          // icon: 'path_to_icon.png' // 아이콘 경로를 지정하세요 (선택 사항)
+        });
+      }
+    }
+
+    // 매도 신호 브라우저 알림 함수
+    function notifySellSignal(ticker) {
+      if (Notification.permission === 'granted') {
+        new Notification('매도 신호 알림', {
+          body: `${ticker.korean_name} (${ticker.market}) 에서 RSI 과매수 및 MACD 데드크로스 신호가 발생했습니다.`,
           // icon: 'path_to_icon.png' // 아이콘 경로를 지정하세요 (선택 사항)
         });
       }
@@ -254,10 +278,11 @@
               ...ticker,
               korean_name: marketInfo ? marketInfo.korean_name : ticker.market, // 한글 이름 추가
               compositeScore: signals[index].compositeScore,
-              combinedSignals: signals[index].combined
+              combinedBuySignals: signals[index].buySignal,
+              combinedSellSignals: signals[index].sellSignal
             };
           })
-          .filter(t => t.compositeScore > 0) // RSI 과매도와 MACD 골든크로스 모두 있는 코인만 필터링
+          .filter(t => t.compositeScore > 0) // 매수 또는 매도 신호가 있는 코인만 필터링
           .sort((a, b) => b.compositeScore - a.compositeScore || b.signed_change_rate - a.signed_change_rate);
 
         // 24시간 변동률 최저 및 최고 계산
@@ -272,7 +297,6 @@
         top5TableBody.innerHTML = '';
         const top5Tickers = sortedTickers.slice(0, 5);
         top5Tickers.forEach((ticker, index) => {
-          const marketInfo = marketData.find(m => m.market === ticker.market);
           // 호가 정보는 생략
 
           let totalBid = 0, totalAsk = 0;
@@ -294,13 +318,13 @@
               <td class="${totalAsk > totalBid ? 'highlight-ask' : ''}">${totalAsk.toFixed(2)}</td>
               <td>${ratio}</td>
               <td class="${totalBid > totalAsk ? 'positive' : 'negative'}">${sentiment}</td>
-              <td class="signal">${ticker.combinedSignals || '-'}</td>
+              <td class="signal">${ticker.combinedBuySignals || '-'}</td>
             </tr>
           `;
           top5TableBody.insertAdjacentHTML('beforeend', row);
         });
 
-        // 두 번째 추천 코인 테이블 (RSI 과매도 + MACD 골든크로스)
+        // 두 번째 추천 코인 테이블 (RSI 과매도 + MACD 골든크로스 / RSI 과매수 + MACD 데드크로스)
         secondTop5TableBody.innerHTML = '';
         const recommendedTickers = sortedTickers;
 
@@ -312,7 +336,6 @@
         });
 
         recommendedTickers.forEach((ticker, index) => {
-          const marketInfo = marketData.find(m => m.market === ticker.market);
           // 호가 정보는 생략
 
           let totalBid = 0, totalAsk = 0;
@@ -342,18 +365,23 @@
 
           // 매수 신호 결합 (RSI 과매도와 MACD 골든크로스)
           let buySignals = [];
-          if (signals[index].rsiSignal) buySignals.push(signals[index].rsiSignal);
-          if (signals[index].macdSignal) buySignals.push(signals[index].macdSignal);
-          const buySignalText = buySignals.length === 2 ? buySignals.join(', ') : '-'; // 두 신호 모두 있을 때만
+          if (ticker.combinedBuySignals && ticker.combinedBuySignals !== '-') buySignals.push(ticker.combinedBuySignals);
+          const buySignalText = buySignals.length > 0 ? buySignals.join(', ') : '-';
+
+          // 매도 신호 결합 (RSI 과매수와 MACD 데드크로스)
+          let sellSignals = [];
+          if (ticker.combinedSellSignals && ticker.combinedSellSignals !== '-') sellSignals.push(ticker.combinedSellSignals);
+          const sellSignalText = sellSignals.length > 0 ? sellSignals.join(', ') : '-';
 
           // 종합 점수
           const compositeScore = ticker.compositeScore;
 
-          // 매수 신호가 있는 경우 행에 클래스 추가
-          const rowClass = buySignals.length === 2 ? 'buy-signal' : '';
+          // 매수/매도 신호가 있는 경우 행에 클래스 추가
+          const rowClass = (buySignals.length > 0 ? 'buy-signal ' : '') + (sellSignals.length > 0 ? 'sell-signal' : '');
 
-          // 매수 신호 아이콘 추가
-          const buyIcon = buySignals.length === 2 ? '✅' : '';
+          // 매수/매도 신호 아이콘 추가
+          const buyIcon = buySignals.length > 0 ? '✅' : '';
+          const sellIcon = sellSignals.length > 0 ? '❌' : '';
 
           const row = `
             <tr class="${rowClass}">
@@ -369,16 +397,23 @@
               <td>${ratio}</td>
               <td class="${totalBid > totalAsk ? 'positive' : 'negative'}">${sentiment}</td>
               <td class="signal">추천 가능</td>
-              <td>${buySignalText} ${buyIcon}</td>
-              <td class="composite-score">${compositeScore}</td>
-              <td class="${rankChangeClass}">${rankChange}</td>
+              <td>${buySignalText} ${buyIcon}</td> <!-- 매수 신호 표시 및 아이콘 추가 -->
+              <td>${sellSignalText} ${sellIcon}</td> <!-- 매도 신호 표시 및 아이콘 추가 -->
+              <td class="composite-score">${compositeScore}</td> <!-- 종합 점수 표시 -->
+              <td class="${rankChangeClass}">${rankChange}</td> <!-- 순위 변화 표시 -->
             </tr>
           `;
           secondTop5TableBody.insertAdjacentHTML('beforeend', row);
 
           // 매수 신호가 있는 경우 알림 전송 (중복 방지)
-          if (buySignals.length === 2 && !notifiedTickers.has(ticker.market)) {
+          if (buySignals.length > 0 && !notifiedTickers.has(ticker.market)) {
             notifyBuySignal(ticker);
+            notifiedTickers.add(ticker.market);
+          }
+
+          // 매도 신호가 있는 경우 알림 전송 (중복 방지)
+          if (sellSignals.length > 0 && !notifiedTickers.has(ticker.market)) {
+            notifySellSignal(ticker);
             notifiedTickers.add(ticker.market);
           }
         });
@@ -404,7 +439,7 @@
     // 페이지 로드 시 자동 실행
     renderTables();
 
-    // 5초마다 자동 새로고침
+    // 5초마다 자동 새로고침 (필요에 따라 조정)
     setInterval(renderTables, 5000);
   </script>
 </body>

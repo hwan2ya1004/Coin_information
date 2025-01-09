@@ -60,7 +60,7 @@
     <tbody id="top5TableBody"></tbody>
   </table>
 
-  <h2>추천 코인 (RSI 과매도 + MACD 골든크로스 / RSI 과매수 + MACD 데드크로스)</h2>
+  <h2>추천 코인 (매수/매도 신호)</h2>
   <p>순위 기준: **종합 매수/매도 신호 점수** (RSI 과매도, MACD 골든크로스, RSI 과매수, MACD 데드크로스)</p>
   <table>
     <thead>
@@ -78,7 +78,7 @@
         <th>시장 심리</th>
         <th>상승 신호</th>
         <th>매수 신호</th>
-        <th>매도 신호</th> <!-- 새로운 컬럼 추가 -->
+        <th>매도 신호</th>
         <th>종합 점수</th>
         <th>순위 변화</th>
       </tr>
@@ -99,7 +99,8 @@
     const changeRateStats = document.getElementById('changeRateStats');
 
     let previousSecondRanks = {}; // 이전 순위 저장
-    let notifiedTickers = new Set(); // 알림된 코인 추적
+    let notifiedBuyTickers = new Set(); // 매수 알림된 코인 추적
+    let notifiedSellTickers = new Set(); // 매도 알림된 코인 추적
 
     // 1. 업비트 "전체 마켓 정보" 가져오기
     async function fetchMarketAll() {
@@ -135,8 +136,10 @@
       }
     }
 
-    // 4. RSI 계산 함수
+    // 3. RSI 계산 함수
     function calculateRSI(prices, period = 14) {
+      if (prices.length < period + 1) return [];
+
       let gains = 0;
       let losses = 0;
 
@@ -148,12 +151,17 @@
 
       let avgGain = gains / period;
       let avgLoss = losses / period;
-      const rsiValues = [];
+      const rsiValues = [100 - (100 / (1 + (avgGain / avgLoss)))];
 
-      for (let i = period; i < prices.length; i++) {
+      for (let i = period + 1; i < prices.length; i++) {
         const change = prices[i] - prices[i - 1];
-        if (change > 0) avgGain = ((avgGain * (period - 1)) + change) / period;
-        else avgLoss = ((avgLoss * (period - 1)) - change) / period;
+        if (change > 0) {
+          avgGain = ((avgGain * (period - 1)) + change) / period;
+          avgLoss = (avgLoss * (period - 1)) / period;
+        } else {
+          avgGain = (avgGain * (period - 1)) / period;
+          avgLoss = ((avgLoss * (period - 1)) - change) / period;
+        }
 
         const rs = avgGain / avgLoss;
         const rsi = 100 - (100 / (1 + rs));
@@ -163,40 +171,45 @@
       return rsiValues;
     }
 
-    // 5. MACD 계산 함수
+    // 4. MACD 계산 함수
     function calculateMACD(prices, shortPeriod = 12, longPeriod = 26, signalPeriod = 9) {
-      const shortMA = calculateMovingAverage(prices, shortPeriod);
-      const longMA = calculateMovingAverage(prices, longPeriod);
+      const shortEMA = calculateEMA(prices, shortPeriod);
+      const longEMA = calculateEMA(prices, longPeriod);
 
-      const macdLine = shortMA.slice(longPeriod - shortPeriod).map((value, index) => value - longMA[index]);
-      const signalLine = calculateMovingAverage(macdLine, signalPeriod);
+      const macdLine = shortEMA.slice(longPeriod - shortPeriod).map((value, index) => value - longEMA[index]);
+      const signalLine = calculateEMA(macdLine, signalPeriod);
+
       return { macdLine, signalLine };
     }
 
-    // 6. 이동 평균선 계산 함수
-    function calculateMovingAverage(prices, period) {
-      const movingAverages = [];
-      for (let i = 0; i <= prices.length - period; i++) {
-        const subset = prices.slice(i, i + period);
-        const average = subset.reduce((sum, price) => sum + price, 0) / period;
-        movingAverages.push(average);
+    // 5. EMA 계산 함수
+    function calculateEMA(prices, period) {
+      const k = 2 / (period + 1);
+      let emaArray = [];
+      let ema = prices.slice(0, period).reduce((acc, price) => acc + price, 0) / period;
+      emaArray.push(ema);
+
+      for (let i = period; i < prices.length; i++) {
+        ema = prices[i] * k + ema * (1 - k);
+        emaArray.push(ema);
       }
-      return movingAverages;
+
+      return emaArray;
     }
 
-    // 7. 상승 및 하락 신호 탐지 및 종합 신호 생성 (RSI 과매도 + MACD 골든크로스, RSI 과매수 + MACD 데드크로스)
+    // 6. 신호 감지 함수 (매수 및 매도)
     function detectSignals(prices) {
       const rsiValues = calculateRSI(prices);
       const { macdLine, signalLine } = calculateMACD(prices);
 
       return prices.map((price, index) => {
         // 매수 신호 조건 (RSI 과매도, MACD 골든크로스)
-        const rsiBuySignal = rsiValues[index - 14] <= 30 ? 'RSI 과매도' : '';
-        const macdBuySignal = index >= 26 && macdLine[index - 26] > signalLine[index - 26] ? 'MACD 골든크로스' : '';
+        const rsiBuySignal = (rsiValues[index - 14] !== undefined && rsiValues[index - 14] <= 30) ? 'RSI 과매도' : '';
+        const macdBuySignal = (macdLine[index - 26] !== undefined && macdLine[index - 26] > signalLine[index - 26]) ? 'MACD 골든크로스' : '';
 
         // 매도 신호 조건 (RSI 과매수, MACD 데드크로스)
-        const rsiSellSignal = rsiValues[index - 14] >= 70 ? 'RSI 과매수' : '';
-        const macdSellSignal = index >= 26 && macdLine[index - 26] < signalLine[index - 26] ? 'MACD 데드크로스' : '';
+        const rsiSellSignal = (rsiValues[index - 14] !== undefined && rsiValues[index - 14] >= 70) ? 'RSI 과매수' : '';
+        const macdSellSignal = (macdLine[index - 26] !== undefined && macdLine[index - 26] < signalLine[index - 26]) ? 'MACD 데드크로스' : '';
 
         // 매수 신호
         let buySignal = '';
@@ -226,7 +239,7 @@
       });
     }
 
-    // 8. 브라우저 알림 함수
+    // 7. 브라우저 알림 함수 (매수)
     function notifyBuySignal(ticker) {
       if (Notification.permission === 'granted') {
         new Notification('매수 신호 알림', {
@@ -236,7 +249,7 @@
       }
     }
 
-    // 매도 신호 브라우저 알림 함수
+    // 8. 브라우저 알림 함수 (매도)
     function notifySellSignal(ticker) {
       if (Notification.permission === 'granted') {
         new Notification('매도 신호 알림', {
@@ -302,7 +315,7 @@
           let totalBid = 0, totalAsk = 0;
           // 호가 정보가 필요하면 fetchOrderBook을 호출하여 처리
 
-          const ratio = totalBid && totalAsk ? (totalBid / totalAsk).toFixed(2) : '-';
+          const ratio = (totalBid && totalAsk) ? (totalBid / totalAsk).toFixed(2) : '-';
           const sentiment = totalBid > totalAsk ? '긍정적' : '부정적';
 
           const row = `
@@ -324,7 +337,7 @@
           top5TableBody.insertAdjacentHTML('beforeend', row);
         });
 
-        // 두 번째 추천 코인 테이블 (RSI 과매도 + MACD 골든크로스 / RSI 과매수 + MACD 데드크로스)
+        // 두 번째 추천 코인 테이블 (매수/매도 신호)
         secondTop5TableBody.innerHTML = '';
         const recommendedTickers = sortedTickers;
 
@@ -341,7 +354,7 @@
           let totalBid = 0, totalAsk = 0;
           // 호가 정보가 필요하면 fetchOrderBook을 호출하여 처리
 
-          const ratio = totalBid && totalAsk ? (totalBid / totalAsk).toFixed(2) : '-';
+          const ratio = (totalBid && totalAsk) ? (totalBid / totalAsk).toFixed(2) : '-';
           const sentiment = totalBid > totalAsk ? '긍정적' : '부정적';
 
           // 이전 순위 가져오기
@@ -377,7 +390,10 @@
           const compositeScore = ticker.compositeScore;
 
           // 매수/매도 신호가 있는 경우 행에 클래스 추가
-          const rowClass = (buySignals.length > 0 ? 'buy-signal ' : '') + (sellSignals.length > 0 ? 'sell-signal' : '');
+          let rowClass = '';
+          if (buySignals.length > 0) rowClass += 'buy-signal ';
+          if (sellSignals.length > 0) rowClass += 'sell-signal';
+          rowClass = rowClass.trim();
 
           // 매수/매도 신호 아이콘 추가
           const buyIcon = buySignals.length > 0 ? '✅' : '';
@@ -406,15 +422,15 @@
           secondTop5TableBody.insertAdjacentHTML('beforeend', row);
 
           // 매수 신호가 있는 경우 알림 전송 (중복 방지)
-          if (buySignals.length > 0 && !notifiedTickers.has(ticker.market)) {
+          if (buySignals.length > 0 && !notifiedBuyTickers.has(ticker.market)) {
             notifyBuySignal(ticker);
-            notifiedTickers.add(ticker.market);
+            notifiedBuyTickers.add(ticker.market);
           }
 
           // 매도 신호가 있는 경우 알림 전송 (중복 방지)
-          if (sellSignals.length > 0 && !notifiedTickers.has(ticker.market)) {
+          if (sellSignals.length > 0 && !notifiedSellTickers.has(ticker.market)) {
             notifySellSignal(ticker);
-            notifiedTickers.add(ticker.market);
+            notifiedSellTickers.add(ticker.market);
           }
         });
 
@@ -423,7 +439,8 @@
 
         // 알림된 티커를 정리 (10분 후 초기화)
         setTimeout(() => {
-          notifiedTickers.clear();
+          notifiedBuyTickers.clear();
+          notifiedSellTickers.clear();
         }, 10 * 60 * 1000); // 10분
 
         statusEl.textContent = `총 ${krwMarkets.length}개 코인 정보를 불러왔습니다.`;
@@ -439,8 +456,8 @@
     // 페이지 로드 시 자동 실행
     renderTables();
 
-    // 5초마다 자동 새로고침 (필요에 따라 조정)
-    setInterval(renderTables, 5000);
+    // 자동 새로고침 주기 조정 (예: 10초마다 새로고침)
+    setInterval(renderTables, 10000);
   </script>
 </body>
 </html>
